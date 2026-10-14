@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1520;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#071020;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="f-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="55%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="rounded-rect">
+      <rect width="64" height="64" rx="14" ry="14"/>
+    </clipPath>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="64" height="64" rx="14" ry="14" fill="url(#bg-grad)"/>
+
+  <!-- Subtle radial glow behind the F -->
+  <ellipse cx="32" cy="32" rx="22" ry="22" fill="rgba(16,185,129,0.07)"/>
+
+  <!-- Sound wave arcs (left of F) -->
+  <g clip-path="url(#rounded-rect)" filter="url(#glow)" opacity="0.55">
+    <path d="M18 25 Q13 32 18 39" stroke="url(#f-grad)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M14 21 Q7 32 14 43" stroke="url(#f-grad)" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+  </g>
+
+  <!-- Bold geometric F -->
+  <g filter="url(#glow)">
+    <!-- Vertical stem -->
+    <rect x="23" y="14" width="7" height="36" rx="2" fill="url(#f-grad)"/>
+    <!-- Top horizontal bar -->
+    <rect x="23" y="14" width="20" height="7" rx="2" fill="url(#f-grad)"/>
+    <!-- Middle horizontal bar -->
+    <rect x="23" y="28.5" width="16" height="6" rx="2" fill="url(#f-grad)"/>
+  </g>
+</svg>
