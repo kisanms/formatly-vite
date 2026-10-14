@@ -38,10 +38,9 @@ interface RecentDownload {
 
 interface DownloadModalState {
   format: MediaFormat;
-  status: "preparing" | "transcoding" | "ready" | "error";
+  status: "preparing" | "downloading" | "ready" | "error";
   statusMessage: string;
-  blobUrl: string | null;
-  directUrl: string;
+  downloadHref: string | null;
   filename: string;
   error: string | null;
 }
@@ -180,20 +179,19 @@ export default function App() {
     if (!media) return;
 
     const filename = cleanFilename(media.title, format.ext);
-    const directUrl = `/api/download-direct?url=${encodeURIComponent(url.trim())}&formatId=${encodeURIComponent(format.id)}&title=${encodeURIComponent(media.title)}&kind=${format.kind}&ext=${format.ext.toLowerCase()}&confirmedRights=true`;
 
+    // Show modal in "preparing" state while ticket is issued
     setModalState({
       format,
       status: "preparing",
-      statusMessage: "Requesting download ticket...",
-      blobUrl: null,
-      directUrl,
+      statusMessage: "Connecting to media server...",
+      downloadHref: null,
       filename,
       error: null
     });
 
     try {
-      // Step 1: Request ticket
+      // Step 1: Request a short-lived download ticket from the server
       const ticketRes = await fetch("/api/ticket", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -212,46 +210,29 @@ export default function App() {
         throw new Error(ticketData.error || "Failed to issue download ticket.");
       }
 
-      // Step 2: Fetch media stream through server (this runs yt-dlp + ffmpeg)
-      setModalState(prev => prev ? {
-        ...prev,
-        status: "transcoding",
-        statusMessage: `Transcoding & assembling ${format.ext} stream with FFmpeg...`
-      } : null);
+      const downloadHref = ticketData.downloadPath as string;
 
-      const downloadRes = await fetch(ticketData.downloadPath);
-      if (!downloadRes.ok) {
-        const errorText = await downloadRes.text();
-        throw new Error(errorText || "Server transcoding failed.");
-      }
-
-      // Step 3: Stream received as Blob
-      setModalState(prev => prev ? {
-        ...prev,
-        statusMessage: "File received! Saving to your computer..."
-      } : null);
-
-      const blob = await downloadRes.blob();
-      const objectUrl = URL.createObjectURL(blob);
-
-      // Trigger browser download via object URL (instantaneous, never blocked by popup blockers)
+      // Step 2: Trigger a true native browser download by navigating an <a download> tag.
+      // This makes the download appear in the browser's native download bar (bottom tray)
+      // rather than silently downloading inside JavaScript.
       const a = document.createElement("a");
-      a.href = objectUrl;
+      a.href = downloadHref;
       a.download = filename;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
 
+      // Step 3: Update modal — server is now transcoding. The browser shows the file
+      // downloading in its own download bar. We just inform the user.
       setModalState(prev => prev ? {
         ...prev,
-        status: "ready",
-        statusMessage: "Download ready! File saved to your computer.",
-        blobUrl: objectUrl
+        status: "downloading",
+        statusMessage: `Transcoding ${format.ext} with FFmpeg on the server — check your browser's download bar for progress.`,
+        downloadHref
       } : null);
 
-      showToast(`✓ ${filename} saved!`);
-
-      // Record in recent history
+      // Record in history immediately (server processes in background)
       const newRecent: RecentDownload = {
         id: Math.random().toString(36).substring(2, 9),
         title: media.title,
@@ -263,21 +244,28 @@ export default function App() {
       setRecentDownloads(updated);
       localStorage.setItem("formatly_recents", JSON.stringify(updated));
 
+      // Auto-close modal after a few seconds
+      setTimeout(() => {
+        setModalState(prev => {
+          if (prev?.status === "downloading") {
+            return { ...prev, status: "ready", statusMessage: "Your file is downloading in the background. Check the browser download bar below!" };
+          }
+          return prev;
+        });
+      }, 4000);
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Download failed.";
       setModalState(prev => prev ? {
         ...prev,
         status: "error",
-        statusMessage: "Download could not be completed.",
+        statusMessage: "Download could not be started.",
         error: msg
       } : null);
     }
   };
 
   const closeModal = () => {
-    if (modalState?.blobUrl) {
-      URL.revokeObjectURL(modalState.blobUrl);
-    }
     setModalState(null);
   };
 
@@ -338,10 +326,12 @@ export default function App() {
             <div className="modal-header">
               <h3 className="modal-title">
                 {modalState.status === "ready"
-                  ? "✓ Download Complete"
+                  ? "✓ Download Started"
                   : modalState.status === "error"
-                  ? "⚠️ Download Issue"
-                  : "Processing Media Download"}
+                  ? "⚠️ Download Failed"
+                  : modalState.status === "downloading"
+                  ? "⬇ Downloading..."
+                  : "⏳ Preparing Download"}
               </h3>
               <button type="button" className="modal-close-btn" onClick={closeModal} title="Close">
                 ✕
@@ -364,18 +354,49 @@ export default function App() {
 
             {/* Progress / Status display */}
             <div className="modal-progress-container">
-              {modalState.status !== "ready" && modalState.status !== "error" && (
+              {(modalState.status === "preparing" || modalState.status === "downloading") && (
                 <div className="progress-track">
                   <div className="progress-bar-animated"></div>
                 </div>
               )}
               <div className="progress-step-text">
-                {modalState.status === "transcoding" && <span>⚙️</span>}
+                {modalState.status === "preparing" && <span>🔄</span>}
+                {modalState.status === "downloading" && <span>⬇️</span>}
                 {modalState.status === "ready" && <span>✅</span>}
                 {modalState.status === "error" && <span>❌</span>}
                 <span>{modalState.statusMessage}</span>
               </div>
             </div>
+
+            {/* Callout when downloading — point user to browser download bar */}
+            {modalState.status === "downloading" && (
+              <div style={{
+                background: "rgba(16, 185, 129, 0.08)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.9rem 1.1rem",
+                fontSize: "0.88rem",
+                color: "#a7f3d0",
+                lineHeight: 1.6
+              }}>
+                <strong>👀 Look at the bottom of your browser window</strong> — the file is transcoding on the server and will appear in your browser's download tray automatically when ready. This usually takes 10–60 seconds depending on the video length.
+              </div>
+            )}
+
+            {/* Success callout */}
+            {modalState.status === "ready" && (
+              <div style={{
+                background: "rgba(16, 185, 129, 0.1)",
+                border: "1px solid rgba(16, 185, 129, 0.35)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.9rem 1.1rem",
+                fontSize: "0.88rem",
+                color: "#a7f3d0",
+                lineHeight: 1.6
+              }}>
+                🎉 Your download should now appear in your <strong>browser's download bar</strong>. Check the bottom or corner of your browser window!
+              </div>
+            )}
 
             {/* Error explanation */}
             {modalState.error && (
@@ -390,33 +411,21 @@ export default function App() {
 
             {/* Modal Actions */}
             <div className="modal-actions">
-              {modalState.blobUrl && (
+              {/* Retry / re-download link once href is known */}
+              {modalState.downloadHref && (
                 <a
-                  href={modalState.blobUrl}
+                  href={modalState.downloadHref}
                   download={modalState.filename}
                   className="modal-btn-primary"
+                  onClick={closeModal}
                 >
-                  💾 Click to Save Again ({modalState.filename})
+                  ⬇ Click to Download Again
                 </a>
               )}
 
-              {modalState.status !== "ready" && (
-                <a
-                  href={modalState.directUrl}
-                  download={modalState.filename}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="modal-fallback-link"
-                >
-                  Or click here to download directly in a new tab
-                </a>
-              )}
-
-              {modalState.status === "ready" && (
-                <button type="button" className="secondary-btn" onClick={closeModal}>
-                  Close Window
-                </button>
-              )}
+              <button type="button" className="secondary-btn" onClick={closeModal}>
+                {modalState.status === "ready" ? "Close" : "Dismiss"}
+              </button>
             </div>
           </div>
         </div>
