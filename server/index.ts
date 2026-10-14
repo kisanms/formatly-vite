@@ -137,19 +137,32 @@ async function validateMediaUrl(input: string) {
 
 function runProcess(command: string, args: string[], timeoutMs: number) {
   return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, args, { shell: false, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    let stdoutLen = 0;
+    const maxOutput = 50 * 1024 * 1024; // 50MB buffer capacity
+
     const timer = setTimeout(() => {
       try {
         child.kill();
       } catch {}
     }, timeoutMs);
-    child.stdout.on("data", chunk => { if (stdout.length < 10_000_000) stdout += chunk; });
-    child.stderr.on("data", chunk => { if (stderr.length < 200_000) stderr += chunk; });
-    child.on("error", error => { clearTimeout(timer); reject(error); });
-    child.on("close", code => {
+
+    child.stdout?.on("data", (chunk: Buffer) => {
+      if (stdoutLen < maxOutput) {
+        stdoutChunks.push(chunk);
+        stdoutLen += chunk.length;
+      }
+    });
+    child.stderr?.on("data", (chunk: Buffer) => {
+      if (stderrChunks.length < 50) stderrChunks.push(chunk);
+    });
+    child.on("error", (error: Error) => { clearTimeout(timer); reject(error); });
+    child.on("close", (code: number | null) => {
       clearTimeout(timer);
+      const stdout = Buffer.concat(stdoutChunks).toString("utf-8");
+      const stderr = Buffer.concat(stderrChunks).toString("utf-8");
       if (code === 0) resolve(stdout);
       else reject(new Error(stderr.trim().split("\n").slice(-2).join(" ") || `Media tool exited with code ${code}.`));
     });
