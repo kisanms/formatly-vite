@@ -41,7 +41,7 @@ if (extraDirs.length > 0) {
 }
 
 const app = express();
-const port = Number(process.env.API_PORT || 8787);
+const port = Number(process.env.PORT || process.env.API_PORT || 8787);
 const maxDuration = Number(process.env.MAX_MEDIA_SECONDS || 7200);
 const maxBytes = Number(process.env.MAX_MEDIA_BYTES || 524_288_000);
 

@@ -63,6 +63,36 @@ const SUPPORTED_PLATFORMS = [
   { name: "Direct Media", match: /\.(mp4|webm|mov|m4v|mp3|m4a|wav|ogg)/i }
 ];
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+
+async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const targetUrl = `${API_BASE}${endpoint}`;
+  let res: Response;
+  try {
+    res = await fetch(targetUrl, options);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Network unreachable";
+    throw new Error(`Cannot reach media engine (${errorMsg}). If using Vercel, the backend service must be deployed and configured in VITE_API_BASE_URL.`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text();
+    if (res.status === 404) {
+      throw new Error(
+        "Backend API not found (404). Vercel only hosts static frontends by default. The StreamShift backend (yt-dlp + FFmpeg) must be hosted on a container host like Render, Railway, or local server."
+      );
+    }
+    throw new Error(`API error (HTTP ${res.status}): ${text.slice(0, 150) || "Empty response"}`);
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `Server returned error (${res.status})`);
+  }
+  return data as T;
+}
+
 export default function App() {
   const [url, setUrl] = useState("");
   const [confirmedRights, setConfirmedRights] = useState(true);
@@ -88,11 +118,11 @@ export default function App() {
   useEffect(() => {
     async function checkHealth() {
       try {
-        const res = await fetch("/api/health");
-        const data = await res.json();
+        const data = await apiFetch<EngineHealth>("/api/health");
         setHealth(data);
-      } catch {
-        setHealth({ ready: false, engine: "unavailable", error: "Cannot reach backend service." });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Cannot reach backend service.";
+        setHealth({ ready: false, engine: "unavailable", error: msg });
       }
     }
     checkHealth();
@@ -136,16 +166,11 @@ export default function App() {
     setMedia(null);
 
     try {
-      const response = await fetch("/api/info", {
+      const data = await apiFetch<MediaInfo>("/api/info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: cleanUrl, confirmedRights: true })
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to inspect media.");
-      }
 
       setMedia(data);
       setActiveTab("recommended");
@@ -192,7 +217,7 @@ export default function App() {
 
     try {
       // Step 1: Request a short-lived download ticket from the server
-      const ticketRes = await fetch("/api/ticket", {
+      const ticketData = await apiFetch<{ downloadPath: string }>("/api/ticket", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,12 +230,7 @@ export default function App() {
         })
       });
 
-      const ticketData = await ticketRes.json();
-      if (!ticketRes.ok) {
-        throw new Error(ticketData.error || "Failed to issue download ticket.");
-      }
-
-      const downloadHref = ticketData.downloadPath as string;
+      const downloadHref = `${API_BASE}${ticketData.downloadPath}`;
 
       // Step 2: Trigger a true native browser download by navigating an <a download> tag.
       // This makes the download appear in the browser's native download bar (bottom tray)
