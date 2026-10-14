@@ -77,7 +77,7 @@ export default function App() {
 
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>(() => {
     try {
-      const stored = localStorage.getItem("formatly_recents");
+      const stored = localStorage.getItem("streamshift_recents") || localStorage.getItem("formatly_recents");
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -242,7 +242,7 @@ export default function App() {
       };
       const updated = [newRecent, ...recentDownloads.slice(0, 9)];
       setRecentDownloads(updated);
-      localStorage.setItem("formatly_recents", JSON.stringify(updated));
+      localStorage.setItem("streamshift_recents", JSON.stringify(updated));
 
       // Auto-close modal after a few seconds
       setTimeout(() => {
@@ -271,6 +271,7 @@ export default function App() {
 
   const clearHistory = () => {
     setRecentDownloads([]);
+    localStorage.removeItem("streamshift_recents");
     localStorage.removeItem("formatly_recents");
     showToast("History cleared.");
   };
@@ -435,9 +436,15 @@ export default function App() {
       <header className="site-header">
         <div className="header-container">
           <div className="brand-group">
-            <div className="brand-icon">F</div>
+            <div className="brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 7c-2.5-3-7-3-7 1.5 0 5 8 3.5 8 8.5 0 4.5-4.5 4.5-7 1.5" />
+                <polyline points="15 4 19 7 15 10" />
+                <path d="M6 17c2.5 3 7 3 7-1.5 0-5-8-3.5-8-8.5 0-4.5 4.5-4.5 7-1.5" opacity="0.4" />
+              </svg>
+            </div>
             <div className="brand-text">
-              <span className="brand-title">Formatly</span>
+              <span className="brand-title">StreamShift</span>
               <span className="brand-subtitle">Media format & stream desk</span>
             </div>
           </div>
@@ -794,7 +801,7 @@ export default function App() {
         <div className="footer-container">
           <div className="footer-top">
             <div>
-              <strong>Formatly</strong> — Modern media format inspector & stream transcode engine.
+              <strong>StreamShift</strong> — Modern media format inspector & stream transcode engine.
             </div>
             <div>
               {health?.ready ? (
@@ -808,7 +815,7 @@ export default function App() {
           </div>
 
           <div className="footer-disclaimer">
-            Formatly is designed solely for personal inspection, educational purposes, and downloading media content that you own or have verified legal authorization and explicit licensing rights to retrieve. Ensure adherence to the respective terms of service of each content provider.
+            StreamShift is designed solely for personal inspection, educational purposes, and downloading media content that you own or have verified legal authorization and explicit licensing rights to retrieve. Ensure adherence to the respective terms of service of each content provider.
           </div>
         </div>
       </footer>

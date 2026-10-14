@@ -1,45 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0d1520;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#071020;stop-opacity:1" />
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0b111a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#050910;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="f-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
-      <stop offset="55%" style="stop-color:#10b981;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+    <linearGradient id="streamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#38bdf8;stop-opacity:1" />
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+    <filter id="neon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.8" result="blur" />
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
-    <clipPath id="rounded-rect">
-      <rect width="64" height="64" rx="14" ry="14"/>
-    </clipPath>
   </defs>
 
-  <!-- Rounded background -->
-  <rect width="64" height="64" rx="14" ry="14" fill="url(#bg-grad)"/>
+  <!-- Container -->
+  <rect width="64" height="64" rx="15" ry="15" fill="url(#bg)" stroke="#1e293b" stroke-width="1.2"/>
+  <ellipse cx="32" cy="32" rx="22" ry="22" fill="rgba(6,182,212,0.08)"/>
 
-  <!-- Subtle radial glow behind the F -->
-  <ellipse cx="32" cy="32" rx="22" ry="22" fill="rgba(16,185,129,0.07)"/>
-
-  <!-- Sound wave arcs (left of F) -->
-  <g clip-path="url(#rounded-rect)" filter="url(#glow)" opacity="0.55">
-    <path d="M18 25 Q13 32 18 39" stroke="url(#f-grad)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-    <path d="M14 21 Q7 32 14 43" stroke="url(#f-grad)" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
-  </g>
-
-  <!-- Bold geometric F -->
-  <g filter="url(#glow)">
-    <!-- Vertical stem -->
-    <rect x="23" y="14" width="7" height="36" rx="2" fill="url(#f-grad)"/>
-    <!-- Top horizontal bar -->
-    <rect x="23" y="14" width="20" height="7" rx="2" fill="url(#f-grad)"/>
-    <!-- Middle horizontal bar -->
-    <rect x="23" y="28.5" width="16" height="6" rx="2" fill="url(#f-grad)"/>
+  <!-- StreamShift S-Flow Graphic -->
+  <g filter="url(#neon)" stroke="url(#streamGrad)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Upper Stream Curve with Arrow -->
+    <path d="M42 21 C36 15 22 15 22 25 C22 33 42 31 42 39 C42 49 28 49 22 43" stroke-width="4.5"/>
+    <path d="M38 17 L44 21 L38 25" stroke-width="3.5" fill="none"/>
+    <!-- Lower Dynamic Stream Echo -->
+    <path d="M19 47 C24 51 36 51 40 45" stroke-width="2.5" stroke-dasharray="1 3" opacity="0.6"/>
   </g>
 </svg>

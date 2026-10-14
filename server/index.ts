@@ -286,7 +286,7 @@ async function handleDownloadExecution(
   let directory = "";
   let handedToResponse = false;
   try {
-    directory = await mkdtemp(path.join(os.tmpdir(), "formatly-"));
+    directory = await mkdtemp(path.join(os.tmpdir(), "streamshift-"));
     const template = path.join(directory, "media.%(ext)s");
     const baseArgs = [
       "--no-playlist", "--no-warnings", "--restrict-filenames", "--socket-timeout", "20",
@@ -390,7 +390,7 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 });
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Formatly API listening on port ${port}`);
+  console.log(`StreamShift API listening on port ${port}`);
   console.log(`yt-dlp binary resolved: ${ytdlp}`);
   console.log(`ffmpeg binary resolved: ${ffmpeg}`);
 });
