@@ -79,9 +79,18 @@ function getYtDlpArgs(url: string, mode: 'info' | 'download'): string[] {
   return args;
 }
 
+
+function getYtDlpBin(): string {
+  const localBin = path.resolve(process.cwd(), 'yt-dlp');
+  if (fs.existsSync(localBin)) return localBin;
+  const usrBin = '/usr/local/bin/yt-dlp';
+  if (fs.existsSync(usrBin)) return usrBin;
+  return 'yt-dlp';
+}
+
 function runYtDlp(args: string[], timeoutMs: number): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(getYtDlpBin(), args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => child.kill('SIGTERM'), timeoutMs);
@@ -108,7 +117,7 @@ function safeFilename(value: string): string {
 }
 
 app.get('/api/health', (_req, res) => {
-  const ytdlp = spawn('yt-dlp', ['--version']);
+  const ytdlp = spawn(getYtDlpBin(), ['--version']);
   let version = '';
   ytdlp.stdout.on('data', chunk => { version += chunk.toString(); });
   ytdlp.on('close', code => {
@@ -200,7 +209,7 @@ app.get('/api/download/:ticketId', async (req, res) => {
   const cleanup = () => { if (!settled) { settled = true; void fs.promises.rm(tempDir, { recursive: true, force: true }); } };
   let child;
   try {
-    child = spawn('yt-dlp', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    child = spawn(getYtDlpBin(), args, { stdio: ['ignore', 'ignore', 'pipe'] });
   } catch {
     cleanup();
     return res.status(500).send('Unable to start yt-dlp.');
