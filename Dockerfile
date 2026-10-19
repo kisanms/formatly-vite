@@ -1,30 +1,23 @@
 FROM node:20-bookworm-slim
 
-# Install system dependencies: python3, ffmpeg, curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    ffmpeg \
-    curl \
-    ca-certificates \
+    ffmpeg curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Install latest yt-dlp binary directly
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
- && chmod a+rx /usr/local/bin/yt-dlp
+# Download yt-dlp at image build time; Node is installed in the base image and
+# is used by yt-dlp's YouTube JavaScript challenge solver.
+RUN curl --fail --location --retry 3 \
+    https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp \
+ && chmod 0755 /usr/local/bin/yt-dlp
 
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
-
+RUN npm ci
 COPY . .
-
-# Build client bundle so it serves static frontend + API from one single container
 RUN npm run build
 
 ENV NODE_ENV=production
 ENV PORT=8787
 EXPOSE 8787
-
 CMD ["npm", "start"]

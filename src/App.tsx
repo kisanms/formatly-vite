@@ -149,9 +149,9 @@ export default function App() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleAnalyze = async (e?: React.FormEvent) => {
+  const handleAnalyze = async (e?: React.FormEvent, targetUrl?: string) => {
     if (e) e.preventDefault();
-    const cleanUrl = url.trim();
+    const cleanUrl = (targetUrl ?? url).trim();
     if (!cleanUrl) {
       setError("Please paste a valid media URL to inspect.");
       return;
@@ -185,14 +185,26 @@ export default function App() {
 
   const handlePasteClipboard = async () => {
     try {
-      const text = await navigator.clipboard.readText();
+      const text = (await navigator.clipboard.readText()).trim();
       if (text) {
-        setUrl(text.trim());
+        setUrl(text);
         setError(null);
+        // Inspect as soon as clipboard paste completes. The user still chooses
+        // the format and explicitly starts the download from the results.
+        void handleAnalyze(undefined, text);
       }
     } catch {
       showToast("Please paste using Ctrl+V / Cmd+V");
     }
+  };
+
+  const handleInputPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text").trim();
+    if (!pasted) return;
+    e.preventDefault();
+    setUrl(pasted);
+    setError(null);
+    void handleAnalyze(undefined, pasted);
   };
 
   const cleanFilename = (title: string, ext: string) => {
@@ -349,10 +361,10 @@ export default function App() {
                 {modalState.status === "ready"
                   ? "✓ Download Started"
                   : modalState.status === "error"
-                  ? "⚠️ Download Failed"
-                  : modalState.status === "downloading"
-                  ? "⬇ Downloading..."
-                  : "⏳ Preparing Download"}
+                    ? "⚠️ Download Failed"
+                    : modalState.status === "downloading"
+                      ? "⬇ Downloading..."
+                      : "⏳ Preparing Download"}
               </h3>
               <button type="button" className="modal-close-btn" onClick={closeModal} title="Close">
                 ✕
@@ -511,6 +523,7 @@ export default function App() {
                     if (error) setError(null);
                   }}
                   required
+                  onPaste={handleInputPaste}
                 />
                 <div className="input-inline-actions">
                   {url && (
